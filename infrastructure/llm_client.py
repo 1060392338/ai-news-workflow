@@ -59,10 +59,27 @@ class LLMClient:
     def _load_api_key(self) -> str:
         """从 Hermes 配置读取 API key"""
         config_path = os.path.expanduser("~/.hermes/config.yaml")
-        with open(config_path, "r") as f:
-            for line in f:
-                if "api_key" in line and "sk-" in line:
-                    parts = line.split("sk-")
-                    if len(parts) > 1:
-                        return "sk-" + parts[1].strip().strip('"').strip("'")
-        raise RuntimeError("未找到 DeepSeek API key")
+        try:
+            import yaml
+            with open(config_path, "r") as f:
+                cfg = yaml.safe_load(f)
+
+            # custom_providers 是一个列表：[{name, api_key, ...}]
+            for provider in cfg.get("custom_providers", []):
+                key = provider.get("api_key", "")
+                if key and key.startswith("sk-"):
+                    return key
+            # fallback: providers 字典
+            for provider in cfg.get("providers", {}).values():
+                key = provider.get("api_key", "")
+                if key and key.startswith("sk-"):
+                    return key
+            # fallback: 扫所有字段找 sk-
+            import json as _json
+            dump = _json.dumps(cfg)
+            idx = dump.find("sk-")
+            if idx >= 0:
+                return dump[idx:idx+40].split('"')[0]
+        except Exception:
+            pass
+        raise RuntimeError("未找到 DeepSeek API key（检查 ~/.hermes/config.yaml）")

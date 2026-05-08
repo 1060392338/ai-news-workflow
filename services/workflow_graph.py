@@ -445,11 +445,6 @@ class AgentWorkflow:
             raise RuntimeError(result.error)
         return result
 
-    # ==================== 路由 ====================
-
-    def _router(self, state: WorkflowState) -> str:
-        return state.get("stage", "search")
-
     # ==================== 构建 ====================
 
     def _build(self):

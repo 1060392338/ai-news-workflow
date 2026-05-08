@@ -8,9 +8,11 @@ AI 热点新闻工作流 — 多 Agent 入口
   列表租户:  python3 main.py --list-tenants
 """
 import argparse
-import os
 import sys
 from pathlib import Path
+
+from models.tenant import TenantConfig
+from services.workflow_graph import AgentWorkflow
 
 PROJECT_ROOT = Path(__file__).parent
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -52,9 +54,6 @@ def main():
     if args.list_tenants:
         list_tenants(raw_config)
         return
-
-    from models.tenant import TenantConfig
-    from services.workflow_graph import AgentWorkflow
 
     tenant = TenantConfig(**get_tenant_config(raw_config, args.tenant))
     wf = AgentWorkflow(tenant)
