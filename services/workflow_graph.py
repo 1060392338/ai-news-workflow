@@ -28,6 +28,9 @@ from infrastructure.searchers.hn import HackerNewsSearcher
 from infrastructure.searchers.arxiv import ArXivSearcher
 from infrastructure.searchers.zhihu import ZhiHuSearcher
 from infrastructure.searchers.toutiao import TouTiaoSearcher
+from infrastructure.searchers.baidu import BaiduSearcher
+from infrastructure.searchers.douyin import DouyinSearcher
+from infrastructure.searchers.tools import ToolsSearcher
 from infrastructure.platform import get_publisher
 from services.aggregator import Aggregator
 from presentation.feishu_messages import FeishuMessages
@@ -134,6 +137,9 @@ class AgentWorkflow:
             "arxiv": ArXivSearcher(self.http),
             "zhihu": ZhiHuSearcher(self.http),
             "toutiao": TouTiaoSearcher(self.http),
+            "baidu": BaiduSearcher(self.http),
+            "douyin": DouyinSearcher(self.http),
+            "tools": ToolsSearcher(self.http),
         }
 
         # 发布器（通过工厂创建，支持多平台）
@@ -169,7 +175,7 @@ class AgentWorkflow:
                     future_map[pool.submit(self._search_retry, name, s, kw)] = name
 
             try:
-                for f in concurrent.futures.as_completed(future_map, timeout=35):
+                for f in concurrent.futures.as_completed(future_map, timeout=60):
                     name = future_map[f]
                     try:
                         results = f.result()
