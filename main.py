@@ -7,6 +7,7 @@
   列表租户:  python3 main.py --list-tenants
 """
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -19,6 +20,17 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 def load_config() -> dict:
     import yaml
+
+    # 加载 .env 文件（如果有的话）
+    env_path = PROJECT_ROOT / ".env"
+    if env_path.exists():
+        with open(env_path) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    os.environ.setdefault(k.strip(), v.strip())
+
     with open(PROJECT_ROOT / "config.yaml") as f:
         return yaml.safe_load(f)
 

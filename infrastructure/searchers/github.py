@@ -1,4 +1,5 @@
 """GitHub 搜索器 — Trending + Search API"""
+import os
 from datetime import datetime, timedelta
 from typing import Optional
 from infrastructure.http_client import HttpClient
@@ -8,9 +9,13 @@ from models.hot_item import SearchResult
 class GitHubSearcher:
     name = "github"
 
-    def __init__(self, http: Optional[HttpClient] = None):
+    def __init__(self, http=None):
         self.http = http or HttpClient()
         self._headers = {"Accept": "application/vnd.github+json"}
+        # 支持 GITHUB_TOKEN 环境变量（避免未认证的 60 req/h 速率限制）
+        gh_token = os.environ.get("GITHUB_TOKEN", "")
+        if gh_token:
+            self._headers["Authorization"] = f"Bearer {gh_token}"
 
     def search(self, keywords: list[str], max_results: int = 20) -> list[SearchResult]:
         results: list[SearchResult] = []

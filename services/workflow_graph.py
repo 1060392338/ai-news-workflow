@@ -233,10 +233,17 @@ class AgentWorkflow:
     def _node_main_review_topics(self, state: WorkflowState) -> WorkflowState:
         """主 Agent: 审核选题"""
         print(f"\n{'='*50}")
-        print("🧠 主Agent(运营总监): 审核选题")
         print(f"{'='*50}")
 
         topics = state.get("topic_list", [])
+
+        # 硬过滤：剔除与 AI/科技无关的选题
+        topics = self._filter_ai_topics(topics)
+        if not topics:
+            print("  ❌ 所有选题均与 AI/科技无关，流程终止")
+            state["stage"] = END
+            return state
+
         review = self.main_agent.review_topics(topics)
 
         state["topic_review_result"] = review
@@ -412,8 +419,23 @@ class AgentWorkflow:
         results = []
         for i, art_data in enumerate(to_publish):
             title = art_data.get("title", "")
+            images = art_data.get("images", [])
             print(f"\n  [{i+1}/{len(to_publish)}] 发布: {title[:40]}")
             try:
+                # 解析图片占位符为真实图片 URL
+                if images or "![" in art_data.get("content", ""):
+                    from infrastructure.image_search import ImageSearchService
+                    img_svc = ImageSearchService()
+                    resolved_content = img_svc.resolve_article_images(
+                        content=art_data.get("content", ""),
+                        title=title,
+                        image_hints=images,
+                    )
+                    art_data = {**art_data, "content": resolved_content}
+                    img_count = len(images)
+                    if img_count:
+                        print(f"     🖼️ 已解析 {img_count} 张配图")
+
                 article_obj = Article(**art_data)
                 result = self._publish_retry(article_obj)
                 results.append(result.model_dump())
@@ -500,6 +522,64 @@ class AgentWorkflow:
         if stage == "writer_draft":
             return "writer_draft"
         return END
+
+    # ==================== AI相关性硬过滤 ====================
+
+    _AI_TOPIC_KEYWORDS = [
+        "AI", "人工智能", "大模型", "GPT", "Claude", "ChatGPT", "OpenAI",
+        "机器学习", "深度学习", "神经网络", "LLM", "Agent", "MCP", "RAG",
+        "Copilot", "Cursor", "Transformer", "Diffusion",
+        "算法", "训练", "推理", "算力", "GPU", "芯片", "自动驾驶",
+        "机器人", "智能", "自动化", "编程", "开源", "GitHub",
+        "AIGC", "生成式", "多模态", "计算机视觉",
+    ]
+
+    _NON_AI_TOPIC_KEYWORDS = [
+        "歼35", "歼-35", "歼 35", "航母", "军舰", "导弹", "军演",
+        "军事", "国防", "战机", "战斗机", "军队",
+        "选举", "总统", "首相", "外交部", "外交",
+        "天气", "台风", "地震", "灾害", "事故",
+        "明星", "网红", "综艺", "演唱会",
+        "足球", "篮球", "体育", "奥运会",
+        "房价", "股市", "财经",
+    ]
+
+    def _filter_ai_topics(self, topics: list[dict]) -> list[dict]:
+        """基于关键词的 AI 相关性硬过滤"""
+        filtered = []
+        for t in topics:
+            title = t.get("title", "")
+            reason = t.get("reason", "")
+            text = (title + " " + reason).lower()
+
+            # 计算 AI 关键词命中
+            ai_hits = sum(1 for kw in self._AI_TOPIC_KEYWORDS if kw.lower() in text)
+            # 计算非 AI 关键词命中
+            non_ai_hits = sum(1 for kw in self._NON_AI_TOPIC_KEYWORDS if kw.lower() in text)
+
+            # 标题命中非 AI 关键词且无 AI 关键词 → 直接剔除
+            title_lower = title.lower()
+            title_ai = sum(1 for kw in self._AI_TOPIC_KEYWORDS if kw.lower() in title_lower)
+            title_non_ai = sum(1 for kw in self._NON_AI_TOPIC_KEYWORDS if kw.lower() in title_lower)
+
+            if title_non_ai > 0 and title_ai == 0:
+                print(f"  🚫 剔除(非AI标题): {title[:40]}")
+                continue
+            if non_ai_hits > ai_hits:
+                print(f"  🚫 剔除(非AI主导): {title[:40]}")
+                continue
+            if ai_hits == 0 and title_ai == 0:
+                # 没有任何 AI 关键词 → 除非是技术名词
+                tech_extra = ["开源", "代码", "编程", "程序员", "算法"]
+                has_tech = any(kw.lower() in text for kw in tech_extra)
+                if not has_tech:
+                    print(f"  🚫 剔除(无AI特征): {title[:40]}")
+                    continue
+
+            filtered.append(t)
+
+        print(f"  📊 AI相关性过滤: {len(topics)} → {len(filtered)} 个")
+        return filtered
 
     # ==================== 公开接口 ====================
 
