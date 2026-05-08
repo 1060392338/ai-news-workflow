@@ -1,0 +1,173 @@
+# ============================================================
+# AI 热点新闻工作流 - 全局配置
+# 三层结构: 平台 > 类别 > 账号
+# 数据目录: data/{平台}/{类别}/{账号}/
+# ============================================================
+
+global:
+  llm:
+    provider: deepseek
+    model: deepseek-chat
+    temperature: 0.8
+    max_tokens: 3000
+
+  http:
+    timeout: 15
+    max_retries: 2
+    user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+
+  shared_cache: "data/shared/search_cache.db"
+
+# ============================================================
+# 多租户配置 — 平台 > 类别 > 账号
+# ============================================================
+tenants:
+
+  # ========== 今日头条 ==========
+
+  # --- AI热点 ---
+  - id: toutiao_ai_a
+    enabled: true
+    platform: "今日头条"
+    category: "AI热点"
+    account: "A账号"
+    display_name: "头条AI号-A"
+    schedule: "0 8 * * *"
+
+    platform_config:
+      publisher: toutiao
+      publish_url: "https://mp.toutiao.com/profile_v4/graphic/publish"
+      cookie_file: "cookies.json"
+      chrome_data: "chrome_data"
+      max_daily: 3
+      # phone: "你的手机号"
+      # password: "你的密码"
+      # 推送前用 backup 恢复
+
+    category_config:
+      keywords:
+        - "AI"
+        - "人工智能"
+        - "大模型"
+        - "LLM"
+        - "Claude"
+        - "OpenAI"
+        - "GPT"
+        - "ChatGPT"
+        - "Agent"
+        - "AI Agent"
+        - "RAG"
+        - "GitHub AI"
+        - "AI 编程"
+        - "Copilot"
+        - "DeepSeek"
+        - "机器学习"
+        - "开源 AI"
+      search_sources:
+        - github
+        - arxiv
+        - toutiao
+      content_style: "news"
+      top_n: 10
+
+  - id: toutiao_ai_b
+    enabled: false
+    platform: "今日头条"
+    category: "AI热点"
+    account: "B账号"
+    display_name: "头条AI号-B"
+    schedule: "0 8 * * *"
+
+    platform_config:
+      publisher: toutiao
+      publish_url: "https://mp.toutiao.com/profile_v4/graphic/publish"
+      max_daily: 3
+
+    category_config:
+      keywords:
+        - "AI"
+        - "人工智能"
+        - "大模型"
+      search_sources:
+        - github
+        - arxiv
+        - toutiao
+      content_style: "deep"
+      top_n: 10
+
+  # --- 母婴类 ---
+  - id: toutiao_baby_c
+    enabled: false
+    platform: "今日头条"
+    category: "母婴类"
+    account: "C账号"
+    display_name: "头条母婴号-C"
+    schedule: "0 9 * * *"
+
+    platform_config:
+      publisher: toutiao
+      publish_url: "https://mp.toutiao.com/profile_v4/graphic/publish"
+      max_daily: 2
+
+    category_config:
+      keywords:
+        - "育儿"
+        - "母婴"
+        - "早教"
+        - "宝宝"
+        - "孕期"
+        - "辅食"
+      search_sources:
+        - zhihu
+        - toutiao
+      content_style: "friendly"
+      top_n: 5
+
+  - id: toutiao_baby_d
+    enabled: false
+    platform: "今日头条"
+    category: "母婴类"
+    account: "D账号"
+    display_name: "头条母婴号-D"
+    schedule: "0 9 * * *"
+
+    platform_config:
+      publisher: toutiao
+      publish_url: "https://mp.toutiao.com/profile_v4/graphic/publish"
+      max_daily: 2
+
+    category_config:
+      keywords:
+        - "育儿"
+        - "亲子"
+        - "家庭教育"
+      search_sources:
+        - zhihu
+        - toutiao
+      content_style: "friendly"
+      top_n: 5
+
+  # ========== 小红书 (未来) ==========
+
+  - id: xiaohongshu_baby_e
+    enabled: false
+    platform: "小红书"
+    category: "母婴类"
+    account: "E账号"
+    display_name: "小红书母婴号-E"
+    schedule: "0 10 * * *"
+
+    platform_config:
+      publisher: xiaohongshu
+      publish_url: ""
+      max_daily: 2
+
+    category_config:
+      keywords:
+        - "育儿"
+        - "母婴"
+        - "宝宝穿搭"
+      search_sources:
+        - zhihu
+      content_style: "friendly"
+      top_n: 5

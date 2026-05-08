@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+.env
+
+# Chrome user data (contains login sessions)
+data/
+chrome_data/
+chrome_data_new/
+
+# Test scripts (local only)
+test_publish.py
+test_publish_quick.py
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Logs
+*.log
