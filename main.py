@@ -1,5 +1,4 @@
-"""
-AI 热点新闻工作流 — 多 Agent 入口
+"""AI 热点新闻工作流 — 多 Agent 入口
 
 用法:
   完整流程:  python3 main.py --tenant toutiao_ai_a --full
@@ -12,7 +11,7 @@ import sys
 from pathlib import Path
 
 from models.tenant import TenantConfig
-from services.workflow_graph import AgentWorkflow
+from pipelines import get_pipeline, PIPELINE_MAP
 
 PROJECT_ROOT = Path(__file__).parent
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -37,7 +36,18 @@ def list_tenants(raw: dict):
     print("=" * 60)
     for t in raw.get("tenants", []):
         s = "🟢" if t.get("enabled") else "🔴"
-        print(f"  {s} [{t['id']}] {t['platform']} > {t['category']} > {t['account']}")
+        pipeline = t.get("pipeline_type", "content_creation")
+        print(f"  {s} [{t['id']}] {t['platform']} > {t['category']} > {t['account']}"
+              f"  ({pipeline})")
+
+
+def show_pipelines():
+    print("=" * 60)
+    print("📦 已注册的 Pipeline:")
+    print("=" * 60)
+    for name in sorted(PIPELINE_MAP.keys()):
+        print(f"  • {name}")
+    print(f"\n共计 {len(PIPELINE_MAP)} 个 pipeline")
 
 
 def main():
@@ -48,17 +58,28 @@ def main():
     parser.add_argument("--status", action="store_true")
     parser.add_argument("--logs", action="store_true")
     parser.add_argument("--list-tenants", action="store_true")
+    parser.add_argument("--list-pipelines", action="store_true")
 
     args = parser.parse_args()
+
+    if args.list_pipelines:
+        show_pipelines()
+        return
 
     if args.list_tenants:
         list_tenants(raw_config)
         return
 
     tenant = TenantConfig(**get_tenant_config(raw_config, args.tenant))
-    wf = AgentWorkflow(tenant)
+
+    # 通过 pipeline 工厂创建（类型从 tenant 配置的 pipeline_type 字段获取）
+    pipeline_type = getattr(tenant, "pipeline_type", "content_creation")
+    pipeline = get_pipeline(pipeline_type, tenant)
 
     if args.status:
+        # 兼容旧版状态查看（通过 AgentWorkflow 的 repo）
+        from services.workflow_graph import AgentWorkflow
+        wf = AgentWorkflow(tenant)
         state = wf.repo.load_state()
         if not state:
             print(f"📭 [{args.tenant}] 无保存状态")
@@ -75,6 +96,8 @@ def main():
         return
 
     if args.logs:
+        from services.workflow_graph import AgentWorkflow
+        wf = AgentWorkflow(tenant)
         logs = wf.repo.get_publish_logs(10)
         if not logs:
             print(f"📭 [{args.tenant}] 暂无发布记录")
@@ -86,24 +109,24 @@ def main():
 
     if args.full:
         print("=" * 60)
-        print(f"🤖 {tenant.display_name} — 多 Agent 工作流启动")
+        print(f"🤖 {tenant.display_name} — Pipeline: {pipeline_type}")
         print(f"   Agent: 主Agent+选题Agent+写作Agent+合规Agent")
         print("=" * 60)
-        wf.run()
+        result = pipeline.run()
 
-        # 检查最终状态
-        state = wf.repo.load_state()
-        stage = state.get("stage", "") if state else "N/A"
-        print(f"\n{'='*60}")
-        if stage == "__end__" or not state:
-            print("✅ 流程完成")
-        else:
-            print(f"⏸️  流程暂停于: {stage}")
-            articles = state.get("articles", []) if state else []
-            posts = state.get("publish_results", []) if state else []
-            print(f"   文章: {len(articles)} 篇 | 发布: {len(posts)} 条")
-            for e in (state or {}).get("errors", []):
-                print(f"   ⚠️ {e}")
+        # 检查结果
+        if result:
+            stage = result.get("stage", "")
+            print(f"\n{'='*60}")
+            if stage == "__end__" or not result:
+                print("✅ 流程完成")
+            else:
+                print(f"⏸️  流程暂停于: {stage}")
+                articles = result.get("articles", [])
+                posts = result.get("publish_results", [])
+                print(f"   文章: {len(articles)} 篇 | 发布: {len(posts)} 条")
+                for e in result.get("errors", []):
+                    print(f"   ⚠️ {e}")
         return
 
     parser.print_help()

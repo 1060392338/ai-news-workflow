@@ -17,7 +17,7 @@ class BaiduSearcher:
         results = []
         for method in ["_fetch_hotboard", "_fetch_news"]:
             try:
-                results.extend(getattr(self, method)())
+                results.extend(getattr(self, method)(max_results))
             except Exception as e:
                 print(f"  [百度] {method} 失败: {e}")
 
@@ -30,7 +30,7 @@ class BaiduSearcher:
         unique.sort(key=lambda r: r.hot_score, reverse=True)
         return unique[:max_results]
 
-    def _fetch_hotboard(self) -> list[SearchResult]:
+    def _fetch_hotboard(self, limit: int = 20) -> list[SearchResult]:
         """百度热搜榜"""
         url = "https://top.baidu.com/board?tab=realtime"
         headers = {
@@ -80,7 +80,7 @@ class BaiduSearcher:
             titles = re.findall(
                 r'<div class="c-single-text-ellipsis">(.*?)</div>', html
             )
-            for i, title in enumerate(titles[:max_results]):
+            for i, title in enumerate(titles[:limit]):
                 results.append(SearchResult(
                     title=title.strip(),
                     summary="",

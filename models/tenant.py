@@ -33,6 +33,7 @@ class TenantConfig(BaseModel):
     """
     id: str                          # 唯一标识，如 toutiao_ai_a
     enabled: bool = True
+    pipeline_type: str = "content_creation"  # 使用的 pipeline 类型
     platform: str = "今日头条"        # 平台中文名
     category: str = "AI热点"          # 类别中文名
     account: str = "A账号"            # 账号中文名
