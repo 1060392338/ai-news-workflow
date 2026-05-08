@@ -565,6 +565,10 @@ class AgentWorkflow:
             if title_non_ai > 0 and title_ai == 0:
                 print(f"  🚫 剔除(非AI标题): {title[:40]}")
                 continue
+            if title_non_ai >= title_ai and title_ai > 0:
+                # 标题同时有AI和非AI关键词，但非AI占主导 → 大概率是蹭AI角度
+                print(f"  🚫 剔除(非AI主导标题): {title[:40]}")
+                continue
             if non_ai_hits > ai_hits:
                 print(f"  🚫 剔除(非AI主导): {title[:40]}")
                 continue

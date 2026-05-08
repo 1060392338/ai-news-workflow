@@ -19,31 +19,52 @@ class ImageSearchService:
     def __init__(self):
         self._unsplash_key = os.environ.get("UNSPLASH_ACCESS_KEY", "")
 
+    def _extract_keywords(self, description: str) -> str:
+        """从中文描述中提取核心关键词（去除修饰词、只留名词）返回搜索用的短字符串"""
+        import re
+        # 去掉 "一张" "展示" "的" "左边" "右边" 等修饰
+        cleaned = re.sub(r'[一-两]张|展示|的|左边|右边|上方|下方|背景|面对|突出|标注|写着|配文字', '', description)
+        # 去掉标点
+        cleaned = re.sub(r'[，。！？、；：""（）【】】\n\r]', ' ', cleaned)
+        # 切成词
+        words = [w.strip() for w in cleaned.split() if len(w.strip()) > 1]
+        # 取前 4 个最有意义的词（去除方位/介词/量词）
+        stop = {'一个','这个','那个','这些','一些','一张','一位','一种','之间','之后','所在'}
+        keywords = [w for w in words if w not in stop]
+        if not keywords:
+            keywords = words
+        # 限制长度，避免中文长句搜不到
+        result = ' '.join(keywords[:4])
+        return result
+
     def search(self, keyword: str, count: int = 3) -> list[str]:
         """根据关键词搜索图片，返回图片 URL 列表"""
         keyword = keyword.strip()
         if not keyword:
             return []
 
-        # 先从缓存取
-        cache_key = f"{keyword}:{count}"
+        # 提取核心关键词
+        search_term = self._extract_keywords(keyword)
+        if not search_term:
+            search_term = keyword
+
+        cache_key = f"{search_term}:{count}"
         if cache_key in IMAGE_CACHE:
             return IMAGE_CACHE[cache_key]
 
         urls = []
 
-        # 1. 尝试 Unsplash
+        # 1. 尝试 Unsplash（用英文翻或核心词）
         if self._unsplash_key:
             try:
-                urls = self._search_unsplash(keyword, count)
+                urls = self._search_unsplash(search_term, count)
             except Exception as e:
                 print(f"  [ImageSearch] Unsplash 失败: {e}")
 
-        # 2. 备用：根据关键词特征返回一些通用 AI/科技图
+        # 2. 备用：picsum
         if not urls:
-            urls = self._fallback_images(keyword, count)
+            urls = self._fallback_images(search_term, count)
 
-        # 缓存
         if urls:
             IMAGE_CACHE[cache_key] = urls
 
