@@ -40,9 +40,8 @@ tenants:
       cookie_file: "cookies.json"
       chrome_data: "chrome_data"
       max_daily: 3
-      # phone: "你的手机号"
-      # password: "你的密码"
-      # 推送前用 backup 恢复
+      phone: "19520687628"
+      password: "Za82597682"
 
     category_config:
       keywords:

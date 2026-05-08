@@ -463,20 +463,7 @@ class AgentWorkflow:
         builder.add_node("main_final_review", self._node_main_final_review)
         builder.add_node("publish", self._node_publish)
 
-        builder.set_conditional_entry_point(
-            self._router,
-            {
-                "search": "search",
-                "topic_collect": "topic_collect",
-                "main_review_topics": "main_review_topics",
-                "writer_draft": "writer_draft",
-                "compliance_check": "compliance_check",
-                "main_final_review": "main_final_review",
-                "publish": "publish",
-                "__end__": END,
-            }
-        )
-
+        builder.set_entry_point("search")
         builder.add_edge("search", "topic_collect")
         builder.add_edge("topic_collect", "main_review_topics")
         builder.add_edge("compliance_check", "main_final_review")
@@ -532,22 +519,21 @@ class AgentWorkflow:
         return result
 
     def _default_state(self) -> WorkflowState:
-        empty: list = []
         return {
             "tenant_id": self.tenant.id,
             "platform": self.tenant.platform,
             "category": self.tenant.category,
             "account": self.tenant.account,
             "stage": "search",
-            "raw_github": empty, "raw_hn": empty, "raw_arxiv": empty,
-            "raw_zhihu": empty, "raw_toutiao": empty,
-            "topic_list": empty, "selected_topics": empty,
+            "raw_github": [], "raw_hn": [], "raw_arxiv": [],
+            "raw_zhihu": [], "raw_toutiao": [],
+            "topic_list": [], "selected_topics": [],
             "topic_review_result": {},
-            "articles": empty, "current_article_index": 0,
-            "compliance_reports": empty,
-            "final_reviews": empty,
-            "publish_results": empty,
+            "articles": [], "current_article_index": 0,
+            "compliance_reports": [],
+            "final_reviews": [],
+            "publish_results": [],
             "user_input": {},
-            "errors": empty,
+            "errors": [],
             "_message": "",
         }
