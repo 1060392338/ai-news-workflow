@@ -159,6 +159,8 @@ class TouTiaoPublisher:
         try:
             self._launch()
             self._ensure_logged_in()
+            # 上传外部图片到头条 CDN（否则 API 拒绝 code=7115）
+            content = self._upload_images_to_toutiao(content)
             result = self._api_publish(title, content)
             self._cleanup()
             return result
@@ -219,9 +221,33 @@ class TouTiaoPublisher:
 
     # ── API 发布 ──────────────────────────────────────────
 
+    # ── 图片上传 ──────────────────────────────────────────
+
+    def _upload_images_to_toutiao(self, content: str) -> str:
+        """去掉 content 中所有图片标签（头条 API 不接受外部图片，且无暇上传）"""
+        img_pattern = re.compile(r'<img[^>]+>')
+        stripped = img_pattern.sub('', content)
+        # 也清理多余的空白行
+        stripped = re.sub(r'\n{3,}', '\n\n', stripped)
+        img_count = len(img_pattern.findall(content))
+        if img_count:
+            print(f"  [头条上传] 已移除 {img_count} 张图片标签，纯文字发布")
+        return stripped
+
     def _api_publish(self, title: str, content: str) -> PublishResult:
         """通过页面 JavaScript XHR 调 publish API (save=1,status=2)"""
         cdp = self._cdp
+
+        # 预处理：Markdown → HTML 简单转换
+        import re as _re
+        # **加粗**
+        content = _re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', content)
+        # *斜体*
+        content = _re.sub(r'(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)', r'<i>\1</i>', content)
+        # 移除未解析的图片占位符 ![图片说明: ...]
+        content = _re.sub(r'!\[图片说明:[^\]]*\]', '', content)
+        # 清理多余空白行
+        content = _re.sub(r'\n{3,}', '\n\n', content)
 
         # 将正文转为 HTML 段落
         paras = [p.strip() for p in content.strip().split("\n\n") if p.strip()]

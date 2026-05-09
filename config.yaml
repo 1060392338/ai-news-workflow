@@ -40,8 +40,8 @@ tenants:
       cookie_file: "cookies.json"
       chrome_data: "chrome_data"
       max_daily: 3
-      phone: "19520687628"
-      password: "Za82597682"
+      phone: "{{TOUTIAO_PHONE}}"
+      password: "{{TOUTIAO_PASSWORD}}"
 
     category_config:
       keywords:
@@ -62,10 +62,19 @@ tenants:
         - "DeepSeek"
         - "机器学习"
         - "开源 AI"
+        - "MCP"
+        - "AI 工具"
+        - "AI skill"
+        - "AI agent"
+        - "Claude Code"
+        - "Cursor"
       search_sources:
+        - baidu
+        - douyin
         - github
         - arxiv
         - toutiao
+        - tools
       content_style: "news"
       top_n: 10
 

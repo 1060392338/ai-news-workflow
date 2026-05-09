@@ -230,7 +230,7 @@ WRITER_AGENT_PROMPT = """你是一个在科技媒体干了 8 年的老编辑，�
 【输出格式】
 {{
   "title": "文章标题（15-30字）",
-  "content": "文章正文（用 \\\\n\\\\n 分段）",
+  "content": "文章正文（用 \\n\\n 分段）",
   "style": "news",
   "word_count": 1234,
   "images": ["图片说明1", "图片说明2"],

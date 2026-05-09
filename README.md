@@ -298,6 +298,27 @@ tenants:
 **原因**：请求频率过高。
 **解决**：忽略，头条源已经足够。
 
+### Q: 发布成功但文章里显示 `\n` 字面量
+**原因**：写作 Agent prompt 中换行符格式写错了。
+**具体**：`services/agents/agents.py` 第 222 行附近，JSON 输出模板中的 `content` 字段用了 `\\\\n`（4个反斜杠+n）。
+**完整链条**：prompt中 `\\\\n` → Python 解码为 `\\n` → LLM 看到 `\\n` 以为要输出**字面量** `\n` → `json.loads()` 解出字面量 `\n`（反斜杠+n两个字符）→ 文章里显示 `\n` 文本。
+**解决**：改为 `\\n`（2个反斜杠+n），这样 LLM 看到 `\n` 后输出 JSON 标准换行转义，`json.loads()` 解码为真正换行符。
+
+### Q: 文章出现 `**加粗**` 或 `![图片说明: ...]` 原文
+**原因**：LLM 输出的 Markdown 标记在发布时未转换为 HTML。
+**解决**：`infrastructure/platform/toutiao.py` 的 `_api_publish()` 中做预处理：
+- `**加粗**` → `<b>加粗</b>`
+- `*斜体*` → `<i>斜体</i>`  
+- `![图片说明: ...]` 占位符自动移除
+
+### Q: 发布失败 `code=7115 图片uri非法`
+**原因**：头条 publish API 不接受外部图片 URL（如 Unsplash、picsum 链接）。
+**解决**：`_upload_images_to_toutiao()` 剥离所有 `<img>` 标签，纯文字发布。如需带图，需通过 `/mp/agw/article_material/photo/upload_picture` 接口上传到头条 CDN（字段名 `upfile`），但 CDP 方式上传实测有兼容问题。
+
+### Q: 写作 Agent 输出混入了"好的，没问题"之类对话开头
+**原因**：LLM 有时在输出 JSON 前先写一段对话文字，导致 `_parse_json()` 解析失败，fallback 用原始输出当正文。
+**解决**：已强化 prompt 中"只输出 JSON，不要额外文字"的指令，偶尔仍会发生，可人工检查后重新跑一次。
+
 ---
 
 ## 项目文件说明
