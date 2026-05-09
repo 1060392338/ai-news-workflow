@@ -11,6 +11,7 @@ class Article(BaseModel):
     style: str = "news"                # news | deep
     source_item: Optional[dict] = None  # 来源热点 (原始数据)
     created_at: datetime = Field(default_factory=datetime.now)
+    tags: list[str] = Field(default_factory=list)  # 话题标签
 
 
 class PublishResult(BaseModel):

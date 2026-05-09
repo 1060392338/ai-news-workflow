@@ -144,6 +144,7 @@ class TouTiaoPublisher:
     def publish(self, article: Article, tenant_id: str) -> PublishResult:
         title = article.title
         content = article.content
+        tags = article.tags or []
 
         # 头条标题限制 2-30 字，自动截断
         if len(title) > 30:
@@ -155,13 +156,15 @@ class TouTiaoPublisher:
 
         print(f"\n  [头条发布] 《{title}》({self.tenant.account})")
         print(f"  [头条发布] 正文 {len(content)} 字")
+        if tags:
+            print(f"  [头条发布] 话题标签: {', '.join(tags[:5])}")
 
         try:
             self._launch()
             self._ensure_logged_in()
             # 上传外部图片到头条 CDN（否则 API 拒绝 code=7115）
             content = self._upload_images_to_toutiao(content)
-            result = self._api_publish(title, content)
+            result = self._api_publish(title, content, tags)
             self._cleanup()
             return result
         except Exception as e:
@@ -234,9 +237,10 @@ class TouTiaoPublisher:
             print(f"  [头条上传] 已移除 {img_count} 张图片标签，纯文字发布")
         return stripped
 
-    def _api_publish(self, title: str, content: str) -> PublishResult:
+    def _api_publish(self, title: str, content: str, tags: list[str] = None) -> PublishResult:
         """通过页面 JavaScript XHR 调 publish API (save=1,status=2)"""
         cdp = self._cdp
+        tags = tags or []
 
         # 预处理：Markdown → HTML 简单转换
         import re as _re
@@ -274,6 +278,7 @@ class TouTiaoPublisher:
                     content_word_cnt: {len(content)},
                     is_multi_title: 0,
                     sub_titles: [],
+                    interest_tags: {json.dumps(tags)},
                     gd_ext: {{
                         entrance: '',
                         from_page: 'publisher_mp',
@@ -283,6 +288,9 @@ class TouTiaoPublisher:
                         tuwen_wtt_transfer_switch: '1'
                     }}
                 }}));
+                if ({json.dumps(bool(tags))}) {{
+                    fd.append('interest_tags', {json.dumps(json.dumps(tags))});
+                }}
 
                 var xhr = new XMLHttpRequest();
                 xhr.open('POST',

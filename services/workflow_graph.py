@@ -422,6 +422,12 @@ class AgentWorkflow:
             images = art_data.get("images", [])
             print(f"\n  [{i+1}/{len(to_publish)}] 发布: {title[:40]}")
             try:
+                # 自动匹配AI话题标签
+                tags = self._auto_match_tags(title, art_data.get("content", ""))
+                if tags:
+                    print(f"     🏷️ 话题标签: {', '.join(tags)}")
+                art_data = {**art_data, "tags": tags}
+
                 # 解析图片占位符为真实图片 URL
                 if images or "![" in art_data.get("content", ""):
                     from infrastructure.image_search import ImageSearchService
@@ -465,6 +471,35 @@ class AgentWorkflow:
         state["publish_results"] = results
         state["stage"] = "__end__"
         return state
+
+    # ── 话题标签自动匹配 ─────────────────────────────────
+
+    _TOPIC_TAGS = {
+        "人工智能": ["人工智能", "AI", "大模型", "机器学习", "深度学习"],
+        "AI": ["AI", "人工智能", "ChatGPT", "GPT", "LLM"],
+        "大模型": ["大模型", "LLM", "GPT", "AI模型", "开源模型"],
+        "科技": ["科技", "互联网", "数码", "黑科技", "前沿科技"],
+        "AI工具": ["AI工具", "效率工具", "生产力", "Cursor", "Copilot"],
+        "AI编程": ["AI编程", "编程", "开发者", "代码", "程序员"],
+        "AI芯片": ["AI芯片", "芯片", "算力", "英伟达", "GPU"],
+        "ChatGPT": ["ChatGPT", "OpenAI", "GPT", "对话AI", "大语言模型"],
+        "机器人": ["机器人", "人形机器人", "具身智能", "自动化"],
+        "自动驾驶": ["自动驾驶", "智能驾驶", "无人驾驶", "新能源汽车"],
+    }
+
+    def _auto_match_tags(self, title: str, content: str) -> list[str]:
+        """根据标题和正文自动匹配最相关的话题标签（取前3个）"""
+        text = (title + " " + content[:500]).lower()
+        scored = []
+        for tag, keywords in self._TOPIC_TAGS.items():
+            score = sum(1 for kw in keywords if kw.lower() in text)
+            if score > 0:
+                scored.append((score, tag))
+        scored.sort(reverse=True)
+        result = [tag for _, tag in scored[:3]]
+        if not result:
+            result = ["AI"]  # 默认标签
+        return result
 
     @retryable(max_retries=3, delay=2, fallback=None)
     def _publish_retry(self, article: Article) -> PublishResult:
