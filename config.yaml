@@ -33,6 +33,7 @@ tenants:
     account: "A账号"
     display_name: "头条AI号-A"
     schedule: "0 8 * * *"
+    pipeline_type: nurturing
 
     platform_config:
       publisher: toutiao

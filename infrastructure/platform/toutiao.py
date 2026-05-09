@@ -182,6 +182,11 @@ class TouTiaoPublisher:
         """连接已有 Chrome（port 9222）"""
         print("  [头条发布] 连接 Chrome (CDP port 9222)...")
         self._cdp = CDPClient(port=9222).connect()
+        # 启用 Network 域（用于获取 Cookie）
+        try:
+            self._cdp._send("Network.enable")
+        except Exception:
+            pass  # 可能已经启用
         print("  ✅ [头条发布] Chrome 已连接")
 
     def _ensure_logged_in(self):
@@ -227,15 +232,91 @@ class TouTiaoPublisher:
     # ── 图片上传 ──────────────────────────────────────────
 
     def _upload_images_to_toutiao(self, content: str) -> str:
-        """去掉 content 中所有图片标签（头条 API 不接受外部图片，且无暇上传）"""
-        img_pattern = re.compile(r'<img[^>]+>')
-        stripped = img_pattern.sub('', content)
-        # 也清理多余的空白行
-        stripped = re.sub(r'\n{3,}', '\n\n', stripped)
-        img_count = len(img_pattern.findall(content))
-        if img_count:
-            print(f"  [头条上传] 已移除 {img_count} 张图片标签，纯文字发布")
-        return stripped
+        """通过浏览器Cookie上传外部图片到头条CDN，替换为头条内部URL
+
+        流程：CDP获取Cookie → Python下载图片 → requests上传到头条 → 替换URL
+        """
+        import requests as _requests
+
+        img_pattern = re.compile(r'<img[^>]+src="([^"]+)"[^>]*>')
+        external_urls = img_pattern.findall(content)
+        if not external_urls:
+            return content
+
+        # 1. 从CDP获取Cookie
+        cookie_result = self._cdp._send("Network.getCookies", {
+            "urls": ["https://mp.toutiao.com", "https://www.toutiao.com"]
+        })
+        cookies_list = cookie_result.get("cookies", [])
+        cookie_dict = {c["name"]: c["value"] for c in cookies_list}
+        cookie_str = "; ".join(f"{k}={v}" for k, v in cookie_dict.items())
+        csrf = cookie_dict.get("csrf_session_id", "")
+        print(f"  [头条上传] 获取到 {len(cookies_list)} 个Cookie")
+
+        headers = {
+            "Cookie": cookie_str,
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            "Origin": "https://mp.toutiao.com",
+            "Referer": "https://mp.toutiao.com/profile_v4/graphic/publish",
+        }
+        upload_url = "https://mp.toutiao.com/mp/agw/article_material/photo/upload_picture?pgc_watermark=0"
+
+        # 2. 逐张上传
+        url_map = {}
+        total = len(external_urls)
+        print(f"  [头条上传] 发现 {total} 张图片，准备上传到头条CDN...")
+
+        for i, ext_url in enumerate(external_urls):
+            if ext_url in url_map:
+                continue
+            print(f"  [头条上传]  {i+1}/{total}: 下载+上传中...")
+            try:
+                # 下载
+                img_resp = _requests.get(ext_url, timeout=15)
+                img_resp.raise_for_status()
+                img_data = img_resp.content
+                ct = img_resp.headers.get("content-type", "image/jpeg")
+                ext = "jpg" if "jpeg" in ct else "png"
+
+                # 上传到头条
+                upload_resp = _requests.post(
+                    upload_url,
+                    headers=headers,
+                    files={"upfile": (f"image_{i}.{ext}", img_data, ct)},
+                    data={"pgc_watermark": "0", "type": "ueditor"},
+                    timeout=30,
+                )
+                result = upload_resp.json()
+                if result.get("code") == 0:
+                    web_url = result.get("web_url") or result.get("url", "")
+                    if web_url:
+                        # web_url 可能带 \u0026 等转义，需要解码
+                        web_url = web_url.replace("\\u0026", "&")
+                        url_map[ext_url] = web_url
+                        # 也保存短 uri 备用
+                        uri = result.get("web_uri", "")
+                        print(f"    ✅ 上传成功 → {web_url[:60]}...")
+                    else:
+                        print(f"    ⚠️ 返回无web_url: {result.keys()}")
+                        url_map[ext_url] = ext_url
+                else:
+                    print(f"    ⚠️ 上传失败(code={result.get('code')}): {result.get('message','')}")
+                    url_map[ext_url] = ext_url
+            except Exception as e:
+                print(f"    ⚠️ 上传异常: {e}")
+                url_map[ext_url] = ext_url
+
+        # 3. 替换URL
+        def _replace(m):
+            old = m.group(1)
+            new = url_map.get(old, old)
+            tag = m.group(0)
+            return tag.replace(f'src="{old}"', f'src="{new}"')
+
+        new_content = img_pattern.sub(_replace, content)
+        succeeded = sum(1 for u in external_urls if url_map.get(u, u) != u)
+        print(f"  [头条上传] 完成: {succeeded}/{total} 张已上传到头条CDN")
+        return new_content
 
     def _api_publish(self, title: str, content: str, tags: list[str] = None) -> PublishResult:
         """通过页面 JavaScript XHR 调 publish API (save=1,status=2)"""
