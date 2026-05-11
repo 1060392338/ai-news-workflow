@@ -31,19 +31,27 @@ class BaseAgent:
         if cleaned.startswith("{{") and cleaned.endswith("}}"):
             cleaned = cleaned[1:-1]  # 去掉外层括号 → { }
 
+        # 内层 {{ }} → { }（LLM 会在嵌套 JSON 里也输出双括号）
+        cleaned = cleaned.replace("{{", "{").replace("}}", "}")
+
         try:
             return json.loads(cleaned)
         except json.JSONDecodeError:
-            # 尝试修复常见 JSON 格式问题
+            import re
             try:
-                # 有时 LLM 会输出带多余逗号或注释的 JSON
-                import re
                 fixed = re.sub(r',\s*}', '}', cleaned)
                 fixed = re.sub(r',\s*]', ']', fixed)
                 fixed = re.sub(r'//.*?\n', '', fixed)
                 return json.loads(fixed)
             except (json.JSONDecodeError, Exception):
-                return {"raw": text}
+                # 🔧 终极降级：从文本中提取最长的 JSON 对象
+                try:
+                    start = cleaned.index('{')
+                    end = cleaned.rindex('}') + 1
+                    candidate = cleaned[start:end]
+                    return json.loads(candidate)
+                except (ValueError, json.JSONDecodeError):
+                    return {"raw": text}
 
 
 # ============================================================
@@ -307,6 +315,14 @@ class WriterAgent(BaseAgent):
                     "images": parsed.get("images", []),
                     "self_review": parsed.get("self_review", {"passed": True, "issues": []}),
                 }
+            print(f"  [{self.name}] JSON解析失败，已降级提取")
+            # 如果 raw 字段存在，说明完全失败 — 不要用原始文本当正文
+            if "raw" in parsed:
+                print(f"  [{self.name}] ⚠️ 解析彻底失败，丢弃原始文本（含JSON模板）")
+                return {"title": topic.get("title", ""), "content": "",
+                        "style": "news", "word_count": 0,
+                        "source_topic": topic,
+                        "self_review": {"passed": False, "issues": ["JSON解析失败"]}}
             return {"title": topic.get("title", ""), "content": result,
                     "style": "news", "word_count": len(result),
                     "source_topic": topic, "self_review": {"passed": True, "issues": []}}
