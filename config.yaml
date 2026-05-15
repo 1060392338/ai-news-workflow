@@ -40,7 +40,7 @@ tenants:
       publish_url: "https://mp.toutiao.com/profile_v4/graphic/publish"
       cookie_file: "cookies.json"
       chrome_data: "chrome_data"
-      max_daily: 3
+      max_daily: 4
       phone: "19520687628"
       password: "Za82597682"
 
