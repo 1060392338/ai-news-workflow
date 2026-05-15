@@ -154,6 +154,14 @@ class TouTiaoPublisher:
             print(f"  ⚠️ [头条发布] 标题过短，使用默认标题")
             title = "AI前沿速递"
 
+        # 正文末尾注入话题标签链接（头条不自动转换 #文本#，需显式 HTML <a>）
+        if tags:
+            hashtags = " ".join(
+                f'<a href="https://www.toutiao.com/search/?keyword={t}">#{t}#</a>'
+                for t in tags[:5]
+            )
+            content = content.rstrip() + f"\n\n{hashtags}"
+
         print(f"\n  [头条发布] 《{title}》({self.tenant.account})")
         print(f"  [头条发布] 正文 {len(content)} 字")
         if tags:
@@ -272,7 +280,9 @@ class TouTiaoPublisher:
             print(f"  [头条上传]  {i+1}/{total}: 下载+上传中...")
             try:
                 # 下载
-                img_resp = _requests.get(ext_url, timeout=15)
+                # picsum.photos (fastly CDN) 国内访问慢，给更长的超时
+                timeout_val = 60 if 'picsum' in ext_url or 'fastly' in ext_url else 15
+                img_resp = _requests.get(ext_url, timeout=timeout_val)
                 img_resp.raise_for_status()
                 img_data = img_resp.content
                 ct = img_resp.headers.get("content-type", "image/jpeg")

@@ -31,6 +31,7 @@ from infrastructure.searchers.toutiao import TouTiaoSearcher
 from infrastructure.searchers.baidu import BaiduSearcher
 from infrastructure.searchers.douyin import DouyinSearcher
 from infrastructure.searchers.tools import ToolsSearcher
+from infrastructure.searchers.rss_digest import RSSDigestSearcher
 from infrastructure.platform import get_publisher
 from services.aggregator import Aggregator
 from presentation.feishu_messages import FeishuMessages
@@ -140,6 +141,7 @@ class AgentWorkflow:
             "baidu": BaiduSearcher(self.http),
             "douyin": DouyinSearcher(self.http),
             "tools": ToolsSearcher(self.http),
+            "rss_digest": RSSDigestSearcher(self.http),
         }
 
         # 发布器（通过工厂创建，支持多平台）

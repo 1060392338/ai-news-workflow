@@ -33,7 +33,7 @@ tenants:
     account: "A账号"
     display_name: "头条AI号-A"
     schedule: "0 8 * * *"
-    pipeline_type: nurturing
+    pipeline_type: content_creation
 
     platform_config:
       publisher: toutiao
@@ -41,8 +41,8 @@ tenants:
       cookie_file: "cookies.json"
       chrome_data: "chrome_data"
       max_daily: 3
-      phone: "{{TOUTIAO_PHONE}}"
-      password: "{{TOUTIAO_PASSWORD}}"
+      phone: "19520687628"
+      password: "Za82597682"
 
     category_config:
       keywords:
@@ -76,6 +76,7 @@ tenants:
         - arxiv
         - toutiao
         - tools
+        - rss_digest
       content_style: "news"
       top_n: 10
 

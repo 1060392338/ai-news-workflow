@@ -64,10 +64,11 @@ TOPIC_AGENT_PROMPT = """你是一个专注 AI / 科技领域的选题运营师�
 
 ✅ 可以选的（必须满足：主角是 AI / 或 AI 改变了该领域）：
 - AI 行业资讯：大模型更新、AI 公司动态、行业新闻
-- AI 工具：上手体验、对比评测、实际效果（Cursor、Claude、Copilot 等）
+- AI 工具：上手体验、对比评测、实际效果（Cursor、Claude、Copilot、Cline、Codex、OpenCode 等）
 - AI 技术科普：Agent、MCP、RAG、多模态等——用大白话讲清楚
 - AI 编程与开发者：GitHub 热门 AI 项目、代码工具、开源模型
-- AI + X：AI 在某个领域的突破（AI 写代码、AI 画图、AI 做视频、AI 做科研）
+- AI Skills 与 Workflow：新出的 AI Agent Skills、自动化工作流（如 n8n、LangGraph、Dify 等）、多 Agent 协作模式
+- AI + X：AI 在某个领域的突破（AI 写代码、AI 画图、AI 做视频、AI 做科研、AI 辅助写作）
 - 科技商业：芯片（只限跟 AI 算力相关）、AI 创业、AI 投融资
 - 社会热点中与 AI 强相关的话题
 
@@ -80,7 +81,7 @@ TOPIC_AGENT_PROMPT = """你是一个专注 AI / 科技领域的选题运营师�
 - 🚫 **体育、教育政策、医疗（非 AI 相关）**
 
 【选择标准】
-- 必须是近 30 天内的资讯或动态
+- 必须是近 2 个月内的资讯或动态
 - 有信息增量：不是简单复述新闻，要有解读、观点、角度
 - 读者能看懂：再复杂的话题也得能让普通读者理解
 - 有讨论价值：能引发评论区讨论、分享、争论
@@ -107,13 +108,17 @@ class TopicAgent(BaseAgent):
     def select_topics(self, raw_results: dict[str, list[SearchResult]],
                       keywords: list[str]) -> list[dict]:
         all_items = []
-        cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=60)
 
         for source, items in raw_results.items():
             for item in items:
-                # 有 published_at 且超过 30 天的直接跳过
-                if item.published_at and item.published_at < cutoff:
-                    continue
+                # 有 published_at 且超过 60 天的直接跳过
+                if item.published_at:
+                    pub_at = item.published_at
+                    if pub_at.tzinfo is None:
+                        pub_at = pub_at.replace(tzinfo=timezone.utc)
+                    if pub_at < cutoff:
+                        continue
                 all_items.append({
                     "source": source,
                     "title": item.title,
@@ -143,7 +148,7 @@ class TopicAgent(BaseAgent):
             f"以下是今日从各平台搜集到的资讯，共 {len(candidates)} 条。\n"
             f"⚠️ **这个账号是 AI/科技垂直号，只做 AI 和前沿科技内容！**\n"
             f"⚠️ **跟 AI 无关的内容（包括但不限于：纯军事、纯政治、纯娱乐、纯社会新闻）一律不选！！**\n\n"
-            f"⚠️ **只选近 30 天内的 AI 资讯、新闻与热点，过时的老新闻一律跳过。**\n\n"
+            f"⚠️ **只选近 2 个月内的 AI 资讯、新闻与热点，过时的老新闻一律跳过。**\n\n"
             f"请从中筛选出 10 个最具爆款潜质的 **AI 相关** 选题。\n\n"
             f"{items_text}\n\n"
             f"请按 JSON 数组格式输出 10 个选题。"
